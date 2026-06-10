@@ -1,0 +1,334 @@
+import sys
+import pygame
+import random
+import math
+
+pygame.init()
+
+largura = 800
+altura = 600
+tela = pygame.display.set_mode((largura, altura))
+pygame.display.set_caption("Eos_place")
+
+clock = pygame.time.Clock()
+fonte = pygame.font.SysFont(None, 32)
+fonte_pequena = pygame.font.SysFont(None, 24)
+
+x = 400
+y = 300
+raio = 50
+
+humores = ["calmo", "feliz", "curioso", "irritado", "assustado", "cansado"]
+emocao = random.choice(humores)
+
+fome = random.randint(30, 100)
+
+velocidade_x = random.choice([-2, 2])
+velocidade_y = random.choice([-2, 2])
+
+tempo_emocao = 0
+tempo_fome = 0
+tempo_mundo = 0
+
+seguindo_mouse = False
+alvo_x = x
+alvo_y = y
+
+recebendo_carinho = False
+tempo_carinho = 0
+
+cliques_no_eos = 0
+modo_colapso = False
+tempo_colapso = 0
+clones = []
+
+objetos = []
+objeto_arrastado = None
+offset_x = 0
+offset_y = 0
+
+botao_comida = pygame.Rect(620, 20, 140, 45)
+
+
+def distancia(mx, my, px, py):
+    return math.sqrt((mx - px) ** 2 + (my - py) ** 2)
+
+
+def mouse_em_cima_do_eos():
+    mx, my = pygame.mouse.get_pos()
+    return distancia(mx, my, x, y) <= raio
+
+
+def criar_objeto():
+    tipo = random.choice(["bloco", "bolinha"])
+    cor = (
+        random.randint(80, 255),
+        random.randint(80, 255),
+        random.randint(80, 255)
+    )
+
+    objeto = {
+        "tipo": tipo,
+        "x": random.randint(80, largura - 80),
+        "y": random.randint(120, altura - 80),
+        "tamanho": random.randint(25, 55),
+        "cor": cor
+    }
+
+    objetos.append(objeto)
+
+
+def desenhar_objeto(obj):
+    if obj["tipo"] == "bloco":
+        pygame.draw.rect(
+            tela,
+            obj["cor"],
+            (obj["x"], obj["y"], obj["tamanho"], obj["tamanho"])
+        )
+    else:
+        pygame.draw.circle(
+            tela,
+            obj["cor"],
+            (obj["x"], obj["y"]),
+            obj["tamanho"] // 2
+        )
+
+
+def mouse_em_objeto(obj, mx, my):
+    if obj["tipo"] == "bloco":
+        rect = pygame.Rect(obj["x"], obj["y"], obj["tamanho"], obj["tamanho"])
+        return rect.collidepoint(mx, my)
+    else:
+        return distancia(mx, my, obj["x"], obj["y"]) <= obj["tamanho"] // 2
+
+
+def alimentar():
+    global fome, emocao
+
+    fome += random.randint(20, 35)
+
+    if fome > 100:
+        fome = 100
+        emocao = "feliz"
+    elif fome > 60:
+        emocao = "feliz"
+    else:
+        emocao = "calmo"
+
+
+def escolher_velocidade():
+    if emocao == "calmo":
+        return 2
+    if emocao == "feliz":
+        return 3
+    if emocao == "curioso":
+        return 4
+    if emocao == "irritado":
+        return 5
+    if emocao == "assustado":
+        return 6
+    if emocao == "cansado":
+        return 1
+    return 2
+
+
+while True:
+    clock.tick(60)
+
+    for evento in pygame.event.get():
+        if evento.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        if evento.type == pygame.MOUSEBUTTONDOWN:
+            mx, my = pygame.mouse.get_pos()
+
+            if botao_comida.collidepoint(mx, my):
+                alimentar()
+
+            else:
+                for obj in reversed(objetos):
+                    if mouse_em_objeto(obj, mx, my):
+                        objeto_arrastado = obj
+                        offset_x = mx - obj["x"]
+                        offset_y = my - obj["y"]
+
+                        if emocao in ["calmo", "curioso"]:
+                            emocao = random.choice(["curioso", "feliz"])
+                        elif emocao == "feliz":
+                            emocao = random.choice(["feliz", "curioso"])
+                        else:
+                            emocao = random.choice(["irritado", "assustado"])
+
+                        break
+
+                if objeto_arrastado is None:
+                    if mouse_em_cima_do_eos():
+                        cliques_no_eos += 1
+                        emocao = "irritado"
+
+                        if cliques_no_eos >= 8:
+                            modo_colapso = True
+
+                    else:
+                        alvo_x, alvo_y = mx, my
+                        seguindo_mouse = True
+                        emocao = "curioso"
+
+        if evento.type == pygame.MOUSEBUTTONUP:
+            objeto_arrastado = None
+
+        if evento.type == pygame.MOUSEMOTION:
+            mx, my = pygame.mouse.get_pos()
+
+            if objeto_arrastado is not None:
+                objeto_arrastado["x"] = mx - offset_x
+                objeto_arrastado["y"] = my - offset_y
+
+                dist_eos = distancia(mx, my, x, y)
+
+                if dist_eos < 100:
+                    emocao = random.choice(["irritado", "assustado"])
+                else:
+                    if random.randint(0, 100) < 2:
+                        emocao = "curioso"
+
+    if modo_colapso:
+        tempo_colapso += 1
+
+        for i in range(8):
+            clones.append([
+                random.randint(0, largura),
+                random.randint(0, altura),
+                random.randint(20, 70)
+            ])
+
+        tela.fill((0, 0, 0))
+
+        for clone in clones:
+            pygame.draw.circle(tela, (255, 0, 0), (clone[0], clone[1]), clone[2])
+
+        pygame.display.flip()
+
+        if tempo_colapso > 240:
+            pygame.quit()
+            sys.exit()
+
+        continue
+
+    tempo_fome += 1
+    if tempo_fome > 120:
+        fome -= 1
+        tempo_fome = 0
+
+    if fome < 0:
+        fome = 0
+
+    if fome < 20:
+        emocao = "irritado"
+    elif fome < 40 and emocao != "feliz":
+        emocao = "cansado"
+
+    tempo_mundo += 1
+    if tempo_mundo > random.randint(90, 180):
+        acao = random.choice(["criar", "criar", "deletar", "nada"])
+
+        if acao == "criar" and len(objetos) < 12:
+            criar_objeto()
+
+        if acao == "deletar" and len(objetos) > 0:
+            objetos.pop(random.randint(0, len(objetos) - 1))
+
+        tempo_mundo = 0
+
+    if mouse_em_cima_do_eos() and objeto_arrastado is None:
+        recebendo_carinho = True
+        tempo_carinho += 1
+
+        if tempo_carinho < 180:
+            emocao = "feliz"
+        else:
+            emocao = "cansado"
+            seguindo_mouse = False
+            x += random.choice([-4, 4])
+            y += random.choice([-4, 4])
+
+    else:
+        recebendo_carinho = False
+        tempo_carinho = 0
+
+    tempo_emocao += 1
+    if tempo_emocao > 240:
+        emocao = random.choice(humores)
+        tempo_emocao = 0
+
+    velocidade = escolher_velocidade()
+
+    if seguindo_mouse:
+        dx = alvo_x - x
+        dy = alvo_y - y
+        dist = math.sqrt(dx ** 2 + dy ** 2)
+
+        if dist > 5:
+            x += (dx / dist) * velocidade
+            y += (dy / dist) * velocidade
+        else:
+            seguindo_mouse = False
+            emocao = "feliz"
+
+    else:
+        if recebendo_carinho:
+            x += random.choice([-2, -1, 1, 2])
+            y += random.choice([-2, -1, 1, 2])
+        else:
+            if random.randint(0, 100) < 2:
+                velocidade_x = random.choice([-velocidade, -1, 1, velocidade])
+                velocidade_y = random.choice([-velocidade, -1, 1, velocidade])
+
+            x += velocidade_x
+            y += velocidade_y
+
+    if x + raio >= largura:
+        x = largura - raio
+        velocidade_x = random.choice([-2, -1])
+
+    if x - raio <= 0:
+        x = raio
+        velocidade_x = random.choice([1, 2])
+
+    if y + raio >= altura:
+        y = altura - raio
+        velocidade_y = random.choice([-2, -1])
+
+    if y - raio <= 0:
+        y = raio
+        velocidade_y = random.choice([1, 2])
+
+    tela.fill((15, 15, 20))
+
+    for obj in objetos:
+        desenhar_objeto(obj)
+
+    pygame.draw.circle(tela, (255, 0, 0), (int(x), int(y)), raio)
+
+    texto = fonte.render("Eos: " + emocao, True, (255, 255, 255))
+    tela.blit(texto, (20, 20))
+
+    pygame.draw.rect(tela, (80, 80, 80), (20, 60, 200, 25))
+    pygame.draw.rect(tela, (0, 200, 80), (20, 60, fome * 2, 25))
+
+    texto_fome = fonte_pequena.render("Fome: " + str(fome), True, (255, 255, 255))
+    tela.blit(texto_fome, (25, 63))
+
+    pygame.draw.rect(tela, (120, 60, 20), botao_comida)
+    texto_comida = fonte_pequena.render("Dar comida", True, (255, 255, 255))
+    tela.blit(texto_comida, (645, 33))
+
+    texto_info = fonte_pequena.render(
+        "",
+        True,
+        (220, 220, 220)
+    )
+    tela.blit(texto_info, (20, altura - 30))
+
+    pygame.display.flip()
