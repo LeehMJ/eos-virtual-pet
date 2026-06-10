@@ -1,0 +1,42 @@
+PT - BR 
+
+## Como Executar
+
+1. Instale o Python 3.
+2. Instale o Pygame:
+
+```bash
+pip install pygame
+Execute o projeto:
+python eos.py
+Controles
+Passe o mouse sobre o Eos para interagir com ele.
+Clique na tela para fazer o Eos se mover até o local selecionado.
+Clique e arraste os objetos para interagir com o ambiente.
+Alimente o Eos utilizando o botão "Dar comida".
+Tente clicar repetidamente no Eos e descubra o que acontece...
+
+EN - US
+
+## How to Run
+
+1. Install Python 3
+2. Install Pygame:
+
+
+pip install pygame
+
+
+3. Run the project:
+
+
+python eos.py
+
+
+## Controls
+
+* Move the mouse over Eos to interact with it.
+* Click on the screen to make Eos move toward that location.
+* Click and drag objects to interact with the environment.
+* Feed Eos using the "Dar comida" button.
+* Try clicking on Eos repeatedly and see what happens...
